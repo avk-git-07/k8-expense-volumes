@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: expense
+spec:
+  selector:
+    matchLabels:
+      project: expense  # has to match .spec.template.metadata.labels
+      component: mysql
+      tier: db
+  serviceName: "mysql-headless" # this is the headless service to be mentioned for stateful sets
+  replicas: 2 # by default is 1
+  template:
+    metadata:
+      labels:
+        project: expense  # has to match .spec.template.metadata.labels
+        component: mysql
+        tier: db
+    spec:
+      containers:
+      - name: mysql
+        image: avkdocr/mysql:v1
+        volumeMounts:
+        - name: mysql
+          mountPath: /var/lib/mysql
+  # this is PVC definition directly mentioned here
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "expense-ebs"
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  namespace: expense
+spec:
+  clusterIP: None # for headless service there will be no cluster ip, i.e., clusterIp: None
+  selector:
+    project: expense
+    component: mysql
+    tier: db
+  ports:
+  - name: nginx-lb-port
+    protocol: TCP
+    port: 3306 # this port number is belongs to this service
+    targetPort: 3306 # this is target containr's port
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: expense
+spec:
+  selector:
+    project: expense
+    component: mysql
+    tier: db
+  ports:
+  - name: nginx-lb-port
+    protocol: TCP
+    port: 3306 # this port number is belongs to this service
+    targetPort: 3306 # this is target containr's port
+    
